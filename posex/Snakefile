@@ -1,0 +1,132 @@
+configfile: "config.yml"
+
+if config.get("stride", False):
+    FINAL_OUTPUT = expand(
+        f"{config['output_dir']}pc_adj_data_filtered/{{chrom}}.csv",
+        chrom=config["chromosomes"]
+    )
+else:
+    FINAL_OUTPUT = expand(
+        f"{config['output_dir']}final_data/{{chrom}}.csv",
+        chrom=config["chromosomes"]
+    )
+
+rule all:
+    input:
+        FINAL_OUTPUT
+
+rule split_chromosomes:
+    input: dataset = config['dataset']
+    output: csv = f"{config['output_dir']}split_chrom/{{chrom}}.csv"
+    script: "scripts/split_chrom.py"
+
+
+rule flank_data:
+    input: 
+        in_data = f"{config['output_dir']}split_chrom/{{chrom}}.csv"
+    output: 
+        out_data = f"{config['output_dir']}flank_data/{{chrom}}.csv"
+    params:
+        lf = config['lf'],
+        rf = config['rf']
+    script: 
+        "scripts/flank_data.py"
+
+
+rule to_bed:
+    input: 
+        in_data = f"{config['output_dir']}flank_data/{{chrom}}.csv"
+    output: 
+        out_data = f"{config['output_dir']}bed_data/{{chrom}}.bed"
+    script: 
+        "scripts/to_bed.py"
+
+rule read_intersects:
+    input: 
+        in_data = f"{config['output_dir']}bed_data/{{chrom}}.bed",
+        reads = f"{config['reads_directory']}/{{chrom}}_mod_nosnps.bed"
+    output: 
+        out_data = f"{config['output_dir']}reads/{{chrom}}.bed"
+    shell: 
+        "bedtools intersect -a {input.reads} -b {input.in_data} -wo > {output.out_data}"
+
+
+rule percentage:
+    input: 
+        in_data = f"{config['output_dir']}reads/{{chrom}}.bed"
+    output: 
+        out_data = f"{config['output_dir']}pc_adj_data/{{chrom}}.csv"
+    params:
+        cell_sample = config['cell_sample'],
+        cell_type = config['cell_type'],
+        opposite_strand = True,
+        epsilon = config['epsilon'],
+        alpha = config['alpha'],
+    script: 
+        "scripts/pc_adj.py"
+
+
+rule filter:
+    input: 
+        in_data = f"{config['output_dir']}pc_adj_data/{{chrom}}.csv"
+    output: 
+        out_data = f"{config['output_dir']}pc_adj_data_filtered/{{chrom}}.csv"
+    script:
+        "scripts/filter_data.py"  
+
+
+rule seq_strides:
+    input: 
+        in_data = f"{config['output_dir']}pc_adj_data_filtered/{{chrom}}.csv",
+        bw_file = config['bw_file']
+    output: 
+        out_data = f"{config['output_dir']}stride_data/{{chrom}}.bed"
+    params:
+        num_strides = config['num_strides'],
+        stride_length = config['stride_length']
+    script: 
+        "scripts/seq_strides.py"
+
+
+rule stride_read_intersects:
+    input: 
+        in_data = f"{config['output_dir']}stride_data/{{chrom}}.bed",
+        reads = f"{config['reads_directory']}/{{chrom}}_mod_nosnps.bed"
+    output: 
+        out_data = f"{config['output_dir']}stride_reads/{{chrom}}.bed"
+    shell: 
+        "bedtools intersect -a {input.reads} -b {input.in_data} -wo > {output.out_data}"
+
+
+rule stride_percentage:
+    input: 
+        in_data = f"{config['output_dir']}stride_reads/{{chrom}}.bed"
+    output: 
+        out_data = f"{config['output_dir']}promoter_stride_data/{{chrom}}.csv"
+    params:
+        cell_sample = config['cell_sample'],
+        cell_type = config['cell_type'],
+        opposite_strand = True,
+        epsilon = config['epsilon'],
+        alpha = config['alpha'],
+    script: 
+        "scripts/pc_adj.py"
+
+
+rule filter_opposite_strands:
+    input: 
+        filtered_data = f"{config['output_dir']}pc_adj_data_filtered/{{chrom}}.csv",
+        all_data = f"{config['output_dir']}pc_adj_data/{{chrom}}.csv"
+    output: 
+        out_data = f"{config['output_dir']}promoter_data/{{chrom}}.csv"
+    script:
+        "scripts/promoter_data.py"
+
+rule combine:
+    input: 
+        in_data_1 = f"{config['output_dir']}promoter_data/{{chrom}}.csv",
+        in_data_2 = f"{config['output_dir']}promoter_stride_data/{{chrom}}.csv"
+    output: 
+        out_data = f"{config['output_dir']}final_data/{{chrom}}.csv"
+    script:
+        "scripts/combine.py" 

@@ -1,0 +1,14 @@
+dataset: "data/posex_data_sampled.csv"
+reads_directory: "<location to reads directory>"
+bw_file: "<location to bigwig file>"
+output_dir: "test/"
+lf: 0
+rf: 0
+alpha: 13.31
+epsilon: 1
+cell_type: 'haec'
+cell_sample: 'd1'
+stride: False
+num_strides: 3
+stride_length: 100
+chromosomes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]

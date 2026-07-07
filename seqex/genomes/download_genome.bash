@@ -1,0 +1,1 @@
+wget -qO- https://ftp.ensembl.org/pub/release-116/fasta/bos_taurus/dna/Bos_taurus.ARS-UCD2.0.dna_sm.toplevel.fa.gz | gunzip -c > cattle_genome.fa

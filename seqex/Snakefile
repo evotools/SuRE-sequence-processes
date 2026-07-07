@@ -1,0 +1,49 @@
+configfile: "config.yaml"
+
+rule all:
+    input: 
+        expand(f"{config['output_dir']}tsv/{{chrom}}.tsv", chrom=config["chromosomes"])
+
+rule split_chromosomes:
+    input: dataset = config['dataset']
+    output: csv = f"{config['output_dir']}tmp_dir/{{chrom}}.csv"
+    script: "scripts/split_chrom.py"
+
+
+rule create_bed:
+    input: 
+        csv = f"{config['output_dir']}tmp_dir/{{chrom}}.csv"
+    output: 
+        bed = f"{config['output_dir']}bed_dir/{{chrom}}.bed",
+        tmp = f"{config['output_dir']}bed_dir/{{chrom}}.bed.tmp"
+    script: 
+        "scripts/to_bed.py"
+
+
+rule get_fasta:
+    input: 
+        genome = config["genome"],
+        bed = f"{config['output_dir']}bed_dir/{{chrom}}.bed",
+    output: 
+        seq = f"{config['output_dir']}seq/{{chrom}}.txt"
+    shell: 
+        "bedtools getfasta -fi {input.genome} -bed {input.bed} -s -tab > {output.seq}"
+
+
+rule merge_data:
+    input: 
+        fasta = f"{config['output_dir']}seq/{{chrom}}.txt",
+        meta = f"{config['output_dir']}bed_dir/{{chrom}}.bed.tmp"
+    output: 
+        tsv = f"{config['output_dir']}tsv/{{chrom}}.tsv"
+    script: 
+        "scripts/merge_data.py"
+
+
+rule to_hdf5:
+    input: 
+        tsv = f"{config['output_dir']}tsv/{{chrom}}.tsv"
+    output: 
+        h5 = f"{config['output_dir']}h5/sequence_{{chrom}}.h5"
+    script:
+        "scripts/to_hdf5.py" 
